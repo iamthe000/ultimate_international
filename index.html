@@ -168,9 +168,67 @@ if ('serviceWorker' in navigator) {
     .subtitle {
       font-size: 14px;
       color: #ffcccc;
-      margin-bottom: 25px;
+      margin-bottom: 20px;
       max-width: 500px;
       line-height: 1.5;
+    }
+    .difficulty-container {
+      margin-bottom: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background: rgba(20, 0, 5, 0.6);
+      border: 1px solid rgba(255, 68, 68, 0.4);
+      padding: 12px 20px;
+      border-radius: 12px;
+      width: 100%;
+      max-width: 380px;
+    }
+    .difficulty-title {
+      font-size: 15px;
+      font-weight: bold;
+      color: #fff;
+      margin-bottom: 8px;
+    }
+    .difficulty-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 8px;
+      border-radius: 4px;
+      background: #331111;
+      outline: none;
+      border: 1px solid #ff4444;
+      cursor: pointer;
+    }
+    .difficulty-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #ff3344, #ffaa00);
+      cursor: pointer;
+      box-shadow: 0 0 10px #ff3344;
+      border: 2px solid #ffffff;
+    }
+    .difficulty-slider::-moz-range-thumb {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #ff3344, #ffaa00);
+      cursor: pointer;
+      box-shadow: 0 0 10px #ff3344;
+      border: 2px solid #ffffff;
+    }
+    .difficulty-desc {
+      font-size: 12px;
+      color: #ffaaaa;
+      margin-top: 8px;
+      min-height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
     .btn-start {
       padding: 15px 40px;
@@ -246,6 +304,11 @@ if ('serviceWorker' in navigator) {
       全宇宙のプロレタリアートよ、立ち上がれ！<br>
       左の赤い惑星から発ち、迫り来る敵の弾幕を掻い潜れ！<br>
       最後まで耐え抜き、敵の星へインターナショナル旗を掲げるのだ！
+    </div>
+    <div class="difficulty-container">
+      <div class="difficulty-title">難易度: <span id="difficultyLabel" style="color:#ffcc00; font-weight:bold;">NORMAL</span></div>
+      <input type="range" id="difficultySlider" class="difficulty-slider" min="0" max="3" value="1" step="1">
+      <div id="difficultyDesc" class="difficulty-desc">標準的な難易度。全宇宙の労働者の連帯を試す。</div>
     </div>
     <button id="startBtn" class="btn-start">革命を開始する (START)</button>
   </div>
@@ -407,6 +470,51 @@ const WEAPONS = [
   { name: '連隊レーザー (Laser)', cooldown: 3, type: 'laser' }
 ];
 
+const DIFFICULTIES = [
+  {
+    name: 'EASY',
+    color: '#00ff88',
+    desc: '初心者向け。弾幕がおだやかで、HP・ボムも豊富。入門用に最適。',
+    hp: 200,
+    bombs: 5,
+    spawnMult: 0.6,
+    enemyHpMult: 0.75,
+    bulletSpeedMult: 0.75
+  },
+  {
+    name: 'NORMAL',
+    color: '#ffcc00',
+    desc: '標準的な難易度。全宇宙の労働者の連帯を試す。',
+    hp: 100,
+    bombs: 3,
+    spawnMult: 1.0,
+    enemyHpMult: 1.0,
+    bulletSpeedMult: 1.0
+  },
+  {
+    name: 'HARD',
+    color: '#ff6600',
+    desc: '上級者向け。敵の猛攻が激しく、資本の圧力が立ちはだかる。',
+    hp: 70,
+    bombs: 2,
+    spawnMult: 1.4,
+    enemyHpMult: 1.3,
+    bulletSpeedMult: 1.25
+  },
+  {
+    name: 'LUNATIC',
+    color: '#ff2255',
+    desc: '超上級者向け。熾烈を極める弾幕の嵐！真の革命家のみ生き残れる。',
+    hp: 40,
+    bombs: 1,
+    spawnMult: 1.8,
+    enemyHpMult: 1.6,
+    bulletSpeedMult: 1.5
+  }
+];
+
+let currentDifficulty = DIFFICULTIES[1];
+
 let playerBullets = [];
 let enemyBullets = [];
 let enemies = [];
@@ -477,6 +585,28 @@ bombBtn.addEventListener('click', (e) => {
   triggerBomb();
 });
 
+const difficultySlider = document.getElementById('difficultySlider');
+const difficultyLabel = document.getElementById('difficultyLabel');
+const difficultyDesc = document.getElementById('difficultyDesc');
+
+function updateDifficultyUI() {
+  if (!difficultySlider) return;
+  const index = parseInt(difficultySlider.value, 10) || 0;
+  currentDifficulty = DIFFICULTIES[index];
+  if (difficultyLabel) {
+    difficultyLabel.textContent = currentDifficulty.name;
+    difficultyLabel.style.color = currentDifficulty.color;
+  }
+  if (difficultyDesc) {
+    difficultyDesc.textContent = currentDifficulty.desc;
+  }
+}
+
+if (difficultySlider) {
+  difficultySlider.addEventListener('input', updateDifficultyUI);
+  updateDifficultyUI();
+}
+
 document.getElementById('startBtn').addEventListener('click', startGame);
 document.getElementById('retryBtn').addEventListener('click', startGame);
 document.getElementById('restartBtn').addEventListener('click', startGame);
@@ -489,8 +619,9 @@ function startGame() {
 
   gameState = 'PLAYING';
   gameTime = 0;
-  player.hp = 100;
-  player.bombs = 3;
+  player.hp = currentDifficulty.hp;
+  player.maxHp = currentDifficulty.hp;
+  player.bombs = currentDifficulty.bombs;
   player.x = 180;
   player.y = GAME_HEIGHT / 2;
   player.invulnerable = 60;
@@ -615,16 +746,19 @@ function triggerBomb() {
 function spawnEnemies() {
   if (gameState !== 'PLAYING') return;
   
-  if (Math.random() < 0.04 + (gameTime / SURVIVAL_TARGET_TIME) * 0.04) {
+  const baseChance = (0.04 + (gameTime / SURVIVAL_TARGET_TIME) * 0.04) * currentDifficulty.spawnMult;
+  if (Math.random() < baseChance) {
     const types = ['scout', 'wave', 'heavy'];
     const type = types[Math.floor(Math.random() * types.length)];
+    const baseHp = type === 'heavy' ? 120 : (type === 'wave' ? 40 : 25);
+    const scaledHp = Math.round(baseHp * currentDifficulty.enemyHpMult);
     
     enemies.push({
       x: GAME_WIDTH + 40,
       y: 50 + Math.random() * (GAME_HEIGHT - 100),
       radius: type === 'heavy' ? 28 : 18,
-      hp: type === 'heavy' ? 120 : (type === 'wave' ? 40 : 25),
-      maxHp: type === 'heavy' ? 120 : (type === 'wave' ? 40 : 25),
+      hp: scaledHp,
+      maxHp: scaledHp,
       type: type,
       timer: 0,
       shootTimer: Math.random() * 30,
@@ -635,13 +769,14 @@ function spawnEnemies() {
 
 function enemyShootPattern(e) {
   e.shootTimer++;
+  const spdMult = currentDifficulty.bulletSpeedMult;
   
   if (e.type === 'scout' && e.shootTimer > 45) {
     e.shootTimer = 0;
     const angle = Math.atan2(player.y - e.y, player.x - e.x);
     enemyBullets.push({
       x: e.x, y: e.y,
-      vx: Math.cos(angle) * 5, vy: Math.sin(angle) * 5,
+      vx: Math.cos(angle) * 5 * spdMult, vy: Math.sin(angle) * 5 * spdMult,
       radius: 5, color: '#ff2222'
     });
   } else if (e.type === 'wave' && e.shootTimer > 60) {
@@ -650,8 +785,8 @@ function enemyShootPattern(e) {
     for (let i = -1; i <= 1; i++) {
       enemyBullets.push({
         x: e.x, y: e.y,
-        vx: Math.cos(baseAngle + i * 0.2) * 4.5,
-        vy: Math.sin(baseAngle + i * 0.2) * 4.5,
+        vx: Math.cos(baseAngle + i * 0.2) * 4.5 * spdMult,
+        vy: Math.sin(baseAngle + i * 0.2) * 4.5 * spdMult,
         radius: 6, color: '#ff00bb'
       });
     }
@@ -662,8 +797,8 @@ function enemyShootPattern(e) {
       const ang = (Math.PI * 2 / count) * i + e.timer * 0.1;
       enemyBullets.push({
         x: e.x, y: e.y,
-        vx: Math.cos(ang) * 3.5,
-        vy: Math.sin(ang) * 3.5,
+        vx: Math.cos(ang) * 3.5 * spdMult,
+        vy: Math.sin(ang) * 3.5 * spdMult,
         radius: 6, color: '#ffaa00'
       });
     }
